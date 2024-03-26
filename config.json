@@ -1,4 +1,4 @@
 {
-    "websocket_uri": "ws://10.10.20.136:14290",
+    "websocket_uri": "ws://10.10.20.136:14290/trx-control",
     "keepalive_timer_delay": 5
 }

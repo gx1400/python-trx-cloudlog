@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 
+# trx_pyclient.py   
 
 import asyncio
 import websockets
@@ -15,6 +17,23 @@ async def receive_response(websocket):
 async def receive_messages(websocket):
     async for message in websocket:
         print(f"Received message from server: {message}")
+        data = json.loads(message)
+        msgtype = data.get('request', None)
+
+        ##  {"mode":"SSB","frequency":"14074000","to":"cloudlog","request":"radio","radio":"ft817"}
+        if msgtype == "status-update":
+            radio = data['from']
+            radiofreq = data['status']['frequency']
+            radiomode = data['status']['mode']
+            out = {
+                "to":"cloudlog",
+                "request":"radio",
+                "radio": radio,
+                "frequency": radiofreq,
+                "mode": radiomode
+                }
+            outmsg = json.dumps(out)
+            await send_message(websocket, outmsg)
 
 async def keep_alive(websocket, delay):
     while True:
@@ -33,19 +52,19 @@ async def main():
     uri = config.get("websocket_uri", "ws://localhost:8765")
     delay = config.get("keepalive_timer_delay", 5)
     
-    async with websockets.connect(uri) as websocket:
+    async with websockets.connect(uri=uri, ping_interval=30, timeout=30) as websocket:
         # Send a message to the server
         message_to_send = '{"request":"start-status-updates","to":"ft-817"}'
         await send_message(websocket, message_to_send)
         # Receive response from the server
         await receive_response(websocket)
-
+        
         # Send a message to the server
-        message_to_send = '{"to":"keepalive","request":"listen"}'
+        message_to_send = '{"request":"listen","to":"keepalive"}'
         await send_message(websocket, message_to_send)
         # Receive response from the server
         await receive_response(websocket)
-        
+
         # Start the keep-alive task
         keep_alive_task = asyncio.create_task(keep_alive(websocket, delay))
         
@@ -54,7 +73,7 @@ async def main():
             await receive_messages(websocket)
         except KeyboardInterrupt:
             print("Exiting...")
-            keep_alive_task.cancel()
+            #keep_alive_task.cancel()
             raise
 
 if __name__ == "__main__":
