@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-# trx_pyclient.py   
+# trx_pyclient.py
 
 import asyncio
-import websockets
 import json
+import websockets
 
 async def send_message(websocket, message):
     await websocket.send(message)
@@ -48,17 +48,17 @@ async def main():
     except FileNotFoundError:
         print("Config file not found!")
         return
-    
+
     uri = config.get("websocket_uri", "ws://localhost:8765")
     delay = config.get("keepalive_timer_delay", 5)
-    
+
     async with websockets.connect(uri=uri, ping_interval=30, timeout=30) as websocket:
         # Send a message to the server
         message_to_send = '{"request":"start-status-updates","to":"ft-817"}'
         await send_message(websocket, message_to_send)
         # Receive response from the server
         await receive_response(websocket)
-        
+
         # Send a message to the server
         message_to_send = '{"request":"listen","to":"keepalive"}'
         await send_message(websocket, message_to_send)
@@ -67,13 +67,13 @@ async def main():
 
         # Start the keep-alive task
         keep_alive_task = asyncio.create_task(keep_alive(websocket, delay))
-        
+
         try:
             # Listen for incoming messages from the server
             await receive_messages(websocket)
         except KeyboardInterrupt:
             print("Exiting...")
-            #keep_alive_task.cancel()
+            keep_alive_task.cancel()
             raise
 
 if __name__ == "__main__":
