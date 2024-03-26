@@ -52,7 +52,7 @@ async def main():
     uri = config.get("websocket_uri", "ws://localhost:8765")
     delay = config.get("keepalive_timer_delay", 5)
 
-    async with websockets.connect(uri=uri, ping_interval=30, timeout=30) as websocket:
+    async with websockets.connect(uri=uri, ping_interval=None, ping_timeout=None) as websocket:
         # Send a message to the server
         message_to_send = '{"request":"start-status-updates","to":"ft-817"}'
         await send_message(websocket, message_to_send)
