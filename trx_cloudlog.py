@@ -7,6 +7,8 @@ import json
 import websockets
 import time
 
+last_processed_times = {}
+
 async def send_message(websocket, message):
     await websocket.send(message)
     print(f"Sent message: {message}")
@@ -16,15 +18,16 @@ async def receive_response(websocket):
     print(f"Received response: {response}")
 
 async def process_message(websocket, message, min_interval):
-    global last_processed_time
+    global last_processed_times
     current_time = time.time()
 
     data = json.loads(message)
     msgtype = data.get('request', None)
+    radio = data.get('from')
 
     if msgtype == "status-update":
+        last_processed_time = last_processed_times.get(radio, 0)
         if current_time - last_processed_time >= min_interval:  # Check if enough time has elapsed since the last message
-            radio = data['from']
             radiofreq = data['status']['frequency']
             radiomode = data['status']['mode']
             out = {
@@ -36,9 +39,9 @@ async def process_message(websocket, message, min_interval):
             }
             outmsg = json.dumps(out)
             await send_message(websocket, outmsg)
-            last_processed_time = current_time
+            last_processed_times[radio] = current_time
         else:
-            print("Ignoring message: Too frequent")
+            print(f"Ignoring message from {radio}: Too frequent")
 
 async def receive_messages(websocket, min_interval):
     async for message in websocket:
@@ -46,9 +49,6 @@ async def receive_messages(websocket, min_interval):
         await process_message(websocket, message, min_interval)
 
 async def main():
-    global last_processed_time
-    last_processed_time = 0
-
     try:
         with open('config.json') as f:
             config = json.load(f)
@@ -64,37 +64,23 @@ async def main():
     uri = config.get("websocket_uri", "ws://10.10.20.136:14290/trx-control")
     min_interval = config.get("minimum_send_interval", 0.5)
 
-    connected = False
-    while not connected:
+    async with websockets.connect(uri=uri) as websocket:
+        for radio in radios:
+            # Send a message to the server to start status updates for each radio
+            message_to_send = {
+                "request": "start-status-updates",
+                "to": radio
+            }
+            await send_message(websocket, json.dumps(message_to_send))
+        # Receive response from the server
+        await receive_response(websocket)
+
         try:
-            async with websockets.connect(uri=uri) as websocket:
-                for radio in radios:
-                    # Send a message to the server to start status updates for each radio
-                    message_to_send = {
-                        "request": "start-status-updates",
-                        "to": radio
-                    }
-                    await send_message(websocket, json.dumps(message_to_send))
-                # Receive response from the server
-                await receive_response(websocket)
-
-                try:
-                    # Listen for incoming messages from the server
-                    await receive_messages(websocket, min_interval)
-                except KeyboardInterrupt:
-                    print("Exiting...")
-                    raise
-
-            connected = True
-        except ConnectionRefusedError:
-            print("Connection refused. Retrying in 5 seconds...")
-            await asyncio.sleep(5)
-        except websockets.exceptions.ConnectionClosedError:
-            print("Disconnected. Retrying in 5 seconds...")
-            await asyncio.sleep(5)
-        except (websockets.exceptions.WebSocketException, websockets.exceptions.InvalidStatusCode):
-            print("Failed to connect. Retrying in 5 seconds...")
-            await asyncio.sleep(5)
+            # Listen for incoming messages from the server
+            await receive_messages(websocket, min_interval)
+        except KeyboardInterrupt:
+            print("Exiting...")
+            raise
 
 if __name__ == "__main__":
     asyncio.run(main())
