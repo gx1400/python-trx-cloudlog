@@ -81,7 +81,7 @@ async def main():
     if radios is None:
         raise ValueError("Radios not found in config file")
 
-    uri = config.get("websocket_uri", "ws://10.10.20.136:14290/trx-control")
+    uri = config.get("websocket_uri", "ws://localhost:14290/trx-control")
     min_interval = config.get("minimum_send_interval", 0.5)
 
     async with websockets.connect(uri=uri) as websocket:
