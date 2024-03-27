@@ -1,4 +1,6 @@
 {
     "websocket_uri": "ws://10.10.20.136:14290/trx-control",
-    "keepalive_timer_delay": 5
+    "keepalive_timer_delay": 5,
+    "radios": ["ft-817", "simulator"],
+    "minimum_send_interval": 0.5
 }
