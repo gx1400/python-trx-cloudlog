@@ -22,7 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import sys
 import time
+import signal
 import asyncio
 import json
 import websockets
@@ -80,7 +82,13 @@ async def receive_messages(websocket, min_interval):
         print(f"Received message from server: {message}")
         await process_message(websocket, message, min_interval)
 
+def signal_handler(in_signal, frame):
+    print('Keyboard interrupt! Exiting...')
+    sys.exit(0)
+
 async def main():
+    signal.signal(signal.SIGINT, signal_handler)
+
     try:
         with open('config.json', encoding='UTF-8') as f:
             config = json.load(f)
@@ -110,21 +118,20 @@ async def main():
                 # Receive response from the server
                 await receive_response(websocket)
 
-                try:
-                    # Listen for incoming messages from the server
-                    await receive_messages(websocket, min_interval)
-                except KeyboardInterrupt:
-                    print("Exiting...")
-                    raise
+                # Listen for incoming messages from the server
+                await receive_messages(websocket, min_interval)
 
             connected = True
+
         except ConnectionRefusedError:
             print("Connection refused. Retrying in 5 seconds...")
             await asyncio.sleep(5)
         except websockets.exceptions.ConnectionClosedError:
             print("Disconnected. Retrying in 5 seconds...")
             await asyncio.sleep(5)
-        except (websockets.exceptions.WebSocketException, websockets.exceptions.InvalidStatusCode, TimeoutError):
+        except (websockets.exceptions.WebSocketException, 
+                websockets.exceptions.InvalidStatusCode, 
+                TimeoutError):
             print("Failed to connect. Retrying in 5 seconds...")
             await asyncio.sleep(5)
 
