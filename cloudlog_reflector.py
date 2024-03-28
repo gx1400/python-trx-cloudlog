@@ -57,7 +57,8 @@ async def process_message(websocket, message, min_interval, override = False):
         if current_time - last_processed_time >= min_interval or override:  
             status = data.get('status', None)
 
-            if status is None:
+            if not status:
+                print("status is empty, disconnect?")
                 return
 
             radiofreq = status.get('frequency', None)
